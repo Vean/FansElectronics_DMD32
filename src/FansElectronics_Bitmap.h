@@ -3,6 +3,8 @@
  * Creator             : Irfan Indra Kurniawan, ST
  * Website             : https://www.fanselectronics.com
  * Buy Me a Coffee     : https://saweria.co/FansElectronics
+ * Ported for Multi-Panel Type (HUB08 & HUB12) on ESP32
+ * Support P10, P4.25, P7.62, dan panel custom dengan konfigurasi pin fleksibel
  */
 
 #ifndef Bitmap_h
