@@ -9,23 +9,27 @@
 
 #include "FansElectronics_DMD32.h"
 
-// Definisikan alias pintar di bagian atas file .cpp
+// ID: Makro pintar menjamin kompatibilitas fungsi LEDC lintas versi Arduino ESP32 Core
+// EN: Smart macro ensuring LEDC function compatibility across Arduino ESP32 Core versions
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
 #define WRITE_PWM(pin, chan, val) ledcWrite(pin, val)
 #else
 #define WRITE_PWM(pin, chan, val) ledcWrite(chan, val)
 #endif
 
-// Flags interupsi timer internal
+// ID: Bendera sinyal interupsi perangkat keras
+// EN: Hardware interrupt signal flags
 volatile bool tickOccured = false;
 
-// Callback timer versi ESP32 (IRAM_ATTR agar berjalan cepat di RAM)
+// ID: Fungsi Callback Timer dijalankan langsung di IRAM demi kecepatan mutlak
+// EN: Timer Callback function executed directly from IRAM for absolute speed
 void IRAM_ATTR timerCallback(void *pArg)
 {
     tickOccured = true;
 }
 
-// Tabel pembalik bit khusus untuk HUB12 (P10)
+// ID: Tabel pembalik urutan bit (MSB ke LSB) untuk pemindaian baris zigzag HUB12
+// EN: Bit reversal lookup table (MSB to LSB) for HUB12 zigzag row scanning
 static const uint8_t flipBits[256] PROGMEM = {
     0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0,
     0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8,
@@ -60,6 +64,8 @@ FansElectronics_DMD32::FansElectronics_DMD32()
 //----------------------------------------------------------------------------------------------
 FansElectronics_DMD32::~FansElectronics_DMD32()
 {
+    // ID: Pembersihan memori alokasi dinamis untuk mencegah memori bocor
+    // EN: Deallocate dynamic memory regions to avoid serious memory leaks
     if (timerHandle)
     {
         esp_timer_stop(timerHandle);
@@ -77,13 +83,13 @@ FansElectronics_DMD32::~FansElectronics_DMD32()
 //----------------------------------------------------------------------------------------------
 void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh, DmdPins pins, int panelWidthPx, int panelHeightPx)
 {
-
     _panelType = type;
     _panelsWide = panelsWide;
     _panelsHigh = panelsHigh;
     _pins = pins;
 
-    // Otomatisasi deteksi ukuran jika diisi 0 oleh pemula
+    // ID: Pengaman deteksi resolusi otomatis jika masukan pengguna bernilai nol
+    // EN: Auto-resolution fallback mechanism if user parameters are zero
     if (panelWidthPx == 0 || panelHeightPx == 0)
     {
         if (_panelType == PANEL_HUB08)
@@ -103,12 +109,14 @@ void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh
         _panelHeightPx = panelHeightPx;
     }
 
-    // Kalkulasi Dimensi Dinamis untuk Framebuffer Bitmap induk
+    // ID: Menghitung total dimensi kanvas horizontal dan vertikal
+    // EN: Computing global horizontal and vertical canvas boundaries
     _width = _panelsWide * _panelWidthPx;
     _height = _panelsHigh * _panelHeightPx;
     _stride = (_width + 7) / 8;
 
-    // Alokasi memori setelah dimensi fix didapatkan
+    // ID: Alokasi heap memori untuk buffer frame visual primer
+    // EN: Dynamic heap allocation for the primary video framebuffer
     unsigned int size = _stride * _height;
     fb0 = (uint8_t *)malloc(size);
     if (fb0)
@@ -117,7 +125,8 @@ void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh
     }
     fb = displayfb = fb0;
 
-    // Setup GPIO output hardware
+    // ID: Konfigurasi arah kendali GPIO register matriks
+    // EN: Configuration of matrix shift-register GPIO control flow
     pinMode(_pins.pin_A, OUTPUT);
     pinMode(_pins.pin_B, OUTPUT);
     if (_pins.pin_C != -1)
@@ -134,9 +143,10 @@ void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh
     if (_pins.pin_D != -1)
         digitalWrite(_pins.pin_D, LOW);
     digitalWrite(_pins.pin_latch, LOW);
-    digitalWrite(_pins.pin_oe, HIGH); // Matikan display saat init (Active Low)
+    digitalWrite(_pins.pin_oe, HIGH); // ID: Matikan display saat init (Active Low) | EN: Disable display during init (Active Low)
 
-    // Setup PWM untuk pin OE (Brightness Control) menggunakan LEDC ESP32
+    // ID: Konfigurasi periferal generator PWM internal kontrol kecerahan
+    // EN: Hardware setup for internal PWM generator controlling brightness levels
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
     ledcAttach(_pins.pin_oe, 10000, 8);
 #else
@@ -144,12 +154,14 @@ void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh
     ledcAttachPin(_pins.pin_oe, 0);
 #endif
 
-    // Setup SPI bus kustom ESP32
+    // ID: Alokasi jalur transmisi data SPI perangkat keras pada bus HSPI
+    // EN: SPI hardware controller allocation hosted on the HSPI bus peripheral
     dmdSPI = new SPIClass(HSPI);
     dmdSPI->begin(_pins.pin_sck, -1, _pins.pin_mosi, -1);
     dmdSPI->setFrequency(10000000); // 10 MHz
 
-    // Konfigurasi Interupsi Timer Latar Belakang (Menggunakan esp_timer ESP-IDF murni)
+    // ID: Konfigurasi interupsi timer berkala menggunakan ESP-IDF API murni
+    // EN: Native ESP-IDF execution of high-priority periodic interrupt timers
     tickOccured = false;
     const esp_timer_create_args_t timerArgs = {
         .callback = &timerCallback,
@@ -159,7 +171,8 @@ void FansElectronics_DMD32::begin(PanelType type, int panelsWide, int panelsHigh
 
     esp_timer_create(&timerArgs, &timerHandle);
 
-    // Interval pemindaian disesuaikan demi kenyamanan mata dan kestabilan task
+    // ID: Interval pemindaian disesuaikan demi penyegaran visual optimal
+    // EN: Periodic interval fine-tuned for smooth refresh visual quality
     uint64_t refreshIntervalUs = (_panelType == PANEL_HUB08) ? 100 : 1000;
     esp_timer_start_periodic(timerHandle, refreshIntervalUs);
 }
@@ -180,13 +193,15 @@ void FansElectronics_DMD32::refresh()
     if (!displayfb)
         return;
 
-    // Memulai Transaksi SPI (Frekuensi 10MHz, MSBFIRST, SPI_MODE0)
+    // ID: Membuka kunci transaksi SPI prioritas tinggi
+    // EN: Opening exclusive high-priority hardware SPI transaction
     dmdSPI->beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
 
     if (_panelType == PANEL_HUB08)
     {
         // ====================================================================
-        // KOREKSI TOTAL & VALID: MENGGUNAKAN LOGIKA ASLI FansElectronics_DM08ESP
+        // ID: BLOK PEMINDAIAN REGISTRI UNTUK TIPE PANEL HUB08 (SCAN 1/16)
+        // EN: REGISTER SCANNING ROUTINE FOR HUB08 PANEL CONFIGURATIONS (1/16 SCAN)
         // ====================================================================
         int stride16 = _stride * 16;
         volatile uint8_t *data0;
@@ -196,7 +211,8 @@ void FansElectronics_DMD32::refresh()
             data0 = displayfb + _stride * (y + phase);
             for (int x = _stride; x > 0; --x)
             {
-                // Wajib menggunakan bitwise NOT (~) agar teks tidak ngeblok / acak-acakan
+                // ID: Gerbang logika NOT (~) membalik bit agar piksel aktif bernilai menyala
+                // EN: Bitwise NOT gate (~) inverts framebuffer values for true active-low lighting
                 dmdSPI->transfer(~*data0++);
             }
             data0 = data0 + stride16;
@@ -204,13 +220,15 @@ void FansElectronics_DMD32::refresh()
 
         dmdSPI->endTransaction();
 
-        // Latch Data HUB08 (Kunci data ke register shift panel)
-        digitalWrite(_pins.pin_oe, HIGH); // Matikan display sebentar untuk mencegah bayangan (ghosting)
+        // ID: Latch Data HUB08 (Kunci data ke register shift panel)
+        // EN: HUB08 Data Latching (Latches registers to external shift chips)
+        digitalWrite(_pins.pin_oe, HIGH); // ID: Cegah efek bayangan | EN: Avoid ghosting artifacts
 
         digitalWrite(_pins.pin_latch, HIGH);
         digitalWrite(_pins.pin_latch, LOW);
 
-        // Atur alamat baris Multiplexing (A, B, C, D) → 16 fase scan
+        // ID: Demultiplexing jalur pin alamat baris fisik (16 fase siklus)
+        // EN: Demultiplexing physical row addressing lines (16 phase steps)
         digitalWrite(_pins.pin_A, (phase & 0x01) ? HIGH : LOW);
         digitalWrite(_pins.pin_B, (phase & 0x02) ? HIGH : LOW);
         if (_pins.pin_C != -1)
@@ -218,16 +236,19 @@ void FansElectronics_DMD32::refresh()
         if (_pins.pin_D != -1)
             digitalWrite(_pins.pin_D, (phase & 0x08) ? HIGH : LOW);
 
-        // Nyalakan kembali display secara murni (Active Low: LOW = Menyala)
+        // ID: Pemicuan emisi cahaya dengan menyuntikkan pulsa PWM
+        // EN: Triggering visual panel emissions with accurate PWM pulse widths
         WRITE_PWM(_pins.pin_oe, 0, 255 - brightenss);
 
-        // Naikkan phase (0..15) kemudian looping balik ke 0
+        // ID: Menggeser indeks fase pemindaian baris matrix
+        // EN: Moving forward to the next multiplexed matrix scan index
         phase = (phase + 1) & 0x0F;
     }
     else
     {
         // ====================================================================
-        // LOGIKA REFRESH ORIGINAL UNTUK PANEL HUB12 (P10 - Scan 1/4)
+        // ID: BLOK PEMINDAIAN ZIGZAG ORIGINAL UNTUK PANEL HUB12 (SCAN 1/4)
+        // EN: ORIGINAL ZIGZAG ROUTINE FOR HUB12 MATRICES (1/4 STRUCTURAL SCAN)
         // ====================================================================
         int stride4 = _stride * 4;
         volatile uint8_t *data0;
@@ -236,7 +257,7 @@ void FansElectronics_DMD32::refresh()
         volatile uint8_t *data3;
         bool flipRow = ((_height & 0x10) == 0);
 
-        digitalWrite(_pins.pin_oe, HIGH); // Matikan display sebentar
+        digitalWrite(_pins.pin_oe, HIGH); // ID: Blanking sementara | EN: Immediate display blanking
 
         for (byte y = 0; y < _height; y += 16)
         {
@@ -274,17 +295,20 @@ void FansElectronics_DMD32::refresh()
 
         dmdSPI->endTransaction();
 
-        // Latch Data HUB12
+        // ID: Kunci pulsa latch baris baru HUB12
+        // EN: Fast latch pulse generation for HUB12 row locks
         digitalWrite(_pins.pin_latch, HIGH);
         digitalWrite(_pins.pin_latch, LOW);
 
-        // Pengalamatan 2 baris scan A, B
+        // ID: Pengalamatan 2 baris scan dual-channel (Pin A dan B)
+        // EN: Twin-channel scan address line manipulation (Pin A & B)
         digitalWrite(_pins.pin_A, (phase & 0x01) ? HIGH : LOW);
         digitalWrite(_pins.pin_B, (phase & 0x02) ? HIGH : LOW);
 
-        // Nyalakan kembali display HUB12 (Active Low)
+        // ID: Nyalakan emisi cahaya untuk interupsi saat ini
+        // EN: Enable display emission for the current scan cycle
         WRITE_PWM(_pins.pin_oe, 0, brightenss);
-        phase = (phase + 1) & 0x03; // Kelipatan 4 Phase Scan HUB12
+        phase = (phase + 1) & 0x03; // ID: Pembagi fase scan HUB12 | EN: Masking phase for HUB12 scans
     }
 }
 //----------------------------------------------------------------------------------------------
@@ -307,12 +331,14 @@ void FansElectronics_DMD32::setDoubleBuffer(bool doubleBuffer)
         _doubleBuffer = doubleBuffer;
         if (doubleBuffer)
         {
+            // ID: Alokasi framebuffer bayangan sekunder di RAM internal
+            // EN: Allocation of background rendering framebuffer in RAM
             unsigned int size = _stride * _height;
             fb1 = (uint8_t *)malloc(size);
             if (fb1)
             {
                 memset(fb1, 0xFF, size);
-                noInterrupts();
+                noInterrupts(); // ID: Matikan interupsi saat menukar memori pointer | EN: Guard critical pointer swapping
                 fb = fb1;
                 displayfb = fb0;
                 interrupts();
@@ -337,6 +363,8 @@ void FansElectronics_DMD32::setDoubleBuffer(bool doubleBuffer)
 //----------------------------------------------------------------------------------------------
 void FansElectronics_DMD32::swapBuffers()
 {
+    // ID: Tukar pointer memori latar belakang ke memori aktif secara instan (Anti-Kedip)
+    // EN: Seamless swapping of background frame buffers to avoid visual flickers
     if (_doubleBuffer)
     {
         noInterrupts();

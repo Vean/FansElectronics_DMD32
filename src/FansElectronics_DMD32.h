@@ -17,20 +17,22 @@
 #include "string.h"
 #include "stdlib.h"
 
-// Enumerasi Tipe Panel
+// ID: Enumerasi tipe panel fisik matrix yang didukung
+// EN: Enumeration of supported physical matrix panel types
 enum PanelType
 {
     PANEL_HUB08,
     PANEL_HUB12
 };
 
-// Struktur Data Pin Konfigurasi Dinamis
+// ID: Struktur data konfigurasi pin fleksibel untuk pemetaan GPIO ESP32-S3
+// EN: Flexible pin configuration data structure for ESP32-S3 GPIO mapping
 struct DmdPins
 {
-    int pin_A;
-    int pin_B;
-    int pin_C;     // Diisi -1 jika HUB12
-    int pin_D;     // Diisi -1 jika HUB12
+    int pin_A;     // Pin untuk alamat baris Multiplexing (Scan Line Addressing) | EN: Pin for Multiplexing row addressing (Scan Line Addressing)
+    int pin_B;     // Pin untuk alamat baris Multiplexing (Scan Line Addressing) | EN: Pin for Multiplexing row addressing (Scan Line Addressing)
+    int pin_C;     // ID: Diisi -1 jika HUB12 | EN: Set to -1 if HUB12
+    int pin_D;     // ID: Diisi -1 jika HUB12 | EN: Set to -1 if HUB12
     int pin_latch; // LAT / SCLK
     int pin_sck;   // CLK
     int pin_oe;    // OE / EN
@@ -40,7 +42,8 @@ struct DmdPins
 class FansElectronics_DMD32 : public FansElectronics_Bitmap
 {
 public:
-    // Constructor default kosong (ramah pemula, alokasi memori dipindah ke begin)
+    // ID: Konstruktor dasar untuk alokasi memori dinamis
+    // EN: Default constructor for dynamic memory allocation
     FansElectronics_DMD32();
     ~FansElectronics_DMD32();
 
@@ -49,7 +52,8 @@ public:
     void swapBuffers();
     void swapBuffersAndCopy();
 
-    // Fungsi begin baru yang fleksibel
+    // ID: Inisialisasi utama driver layar dengan parameter dimensi fleksibel
+    // EN: Core display driver initialization function with flexible dimension parameters
     void begin(PanelType type, int panelsWide, int panelsHigh, DmdPins pins, int panelWidthPx = 0, int panelHeightPx = 0);
 
     void update();
@@ -67,7 +71,8 @@ private:
     uint8_t *fb1;
     uint8_t *displayfb;
 
-    // Variabel Konfigurasi Internal Library
+    // ID: Variabel pelacak konfigurasi internal driver
+    // EN: Internal driver configuration tracking variables
     PanelType _panelType;
     DmdPins _pins;
     int _panelsWide;

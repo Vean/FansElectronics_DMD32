@@ -9,6 +9,8 @@
 
 #include "FansElectronics_Bitmap.h"
 
+// ID: Makro ekstraksi biner metadata font dari susunan array byte PROGMEM
+// EN: Macro extraction formulas parsing font array metadata directly from PROGMEM
 #define fontIsFixed(font) (pgm_read_byte((font)) == 0 && \
                            pgm_read_byte((font) + 1) == 0)
 #define fontWidth(font) (pgm_read_byte((font) + 2))
@@ -19,7 +21,8 @@
 FansElectronics_Bitmap::FansElectronics_Bitmap(int width, int height)
     : _width(width), _height(height), _stride((width + 7) / 8), fb(0), _font(0), _textColor(White)
 {
-    // Allocate memory for the framebuffer and clear it (1 = pixel off).
+    // ID: Penyediaan area memori terstruktur (0xFF melambangkan layar padam biner)
+    // EN: Memory mapping setup (0xFF presets clear/off matrix state)
     unsigned int size = _stride * _height;
     fb = (uint8_t *)malloc(size);
     if (fb)
@@ -43,6 +46,8 @@ void FansElectronics_Bitmap::clear(Color color)
 //----------------------------------------------------------------------------------------------
 FansElectronics_Bitmap::Color FansElectronics_Bitmap::pixel(int x, int y) const
 {
+    // ID: Validasi batas koordinat piksel sebelum diekstrak
+    // EN: Enforcing safety boundaries before pixel coordinate evaluation
     if (((unsigned int)x) >= ((unsigned int)_width) ||
         ((unsigned int)y) >= ((unsigned int)_height))
         return Black;
@@ -57,7 +62,10 @@ void FansElectronics_Bitmap::setPixel(int x, int y, Color color)
 {
     if (((unsigned int)x) >= ((unsigned int)_width) ||
         ((unsigned int)y) >= ((unsigned int)_height))
-        return; // Pixel is off-screen.
+        return; // ID: Piksel di luar kanvas | EN: Pixel is off-screen.
+
+    // ID: Perhitungan bitwise memanipulasi spesifik bit dalam byte buffer
+    // EN: Low-level bitwise masking isolated inside the target byte block
     uint8_t *ptr = fb + y * _stride + (x >> 3);
     if (color)
         *ptr &= ~(((uint8_t)0x80) >> (x & 0x07));
@@ -67,8 +75,8 @@ void FansElectronics_Bitmap::setPixel(int x, int y, Color color)
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawLine(int x1, int y1, int x2, int y2, Color color)
 {
-    // Midpoint line scan-conversion algorithm from "Computer Graphics:
-    // Principles and Practice", Second Edition, Foley, van Dam, et al.
+    // ID: Implementasi Algoritma Garis Midpoint klasik karya Foley & van Dam
+    // EN: Classical Midpoint line scan-conversion implementation by Foley & van Dam
     int dx = x2 - x1;
     int dy = y2 - y1;
     int xstep, ystep;
@@ -170,6 +178,8 @@ void FansElectronics_Bitmap::drawRect(int x1, int y1, int x2, int y2, Color bord
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawCircle(int centerX, int centerY, int radius, Color borderColor, Color fillColor)
 {
+    // ID: Implementasi Algoritma Lingkaran Midpoint (Bresenham)
+    // EN: Classical Bresenham Midpoint Circle rendering algorithm
     if (radius < 0)
         radius = -radius;
     int x = 0;
@@ -200,6 +210,8 @@ void FansElectronics_Bitmap::drawCircle(int centerX, int centerY, int radius, Co
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawBitmap(int x, int y, const FansElectronics_Bitmap &bitmap, Color color)
 {
+    // ID: Merender objek gambar bitmap dari memori RAM internal
+    // EN: Rendering bitmap graphic structures from local RAM space
     int w = bitmap.width();
     int s = bitmap.stride();
     int h = bitmap.height();
@@ -227,6 +239,8 @@ void FansElectronics_Bitmap::drawBitmap(int x, int y, const FansElectronics_Bitm
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawBitmap(int x, int y, FansElectronics_Bitmap::ProgMem bitmap, Color color)
 {
+    // ID: Mengekstrak gambar array bitmap konstan dari Flash Memori (PROGMEM)
+    // EN: Extracting static flash-allocated bitmap arrays (PROGMEM flash memory)
     uint8_t w = pgm_read_byte(bitmap);
     uint8_t s = (w + 7) >> 3;
     uint8_t h = pgm_read_byte(bitmap + 1);
@@ -295,6 +309,8 @@ void FansElectronics_Bitmap::drawText(int x, int y, const String &str, int start
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawTextCenter(int max_x, int x, int y, const String &str)
 {
+    // ID: Kalkulasi posisi koordinat X otomatis agar string tercetak presisi di tengah
+    // EN: Auto-calculating X coordinates for perfectly balanced center aligned string outputs
     if (!_font)
         return;
     uint8_t height = fontHeight(_font);
@@ -317,11 +333,11 @@ void FansElectronics_Bitmap::drawTextCenter(int max_x, int x, int y, const Strin
 //----------------------------------------------------------------------------------------------
 int FansElectronics_Bitmap::drawChar(int x, int y, char ch)
 {
+    // ID: Pemrosesan decoding karakter biner font monokrom lebar dinamis/statis
+    // EN: Decoding low-level glyph representations for variable/fixed fonts
     uint8_t height = fontHeight(_font);
     if (ch == ' ')
     {
-        // Font may not have space, or it is zero-width.  Calculate
-        // the real size and fill the space.
         int spaceWidth = charWidth('n');
         fill(x, y, spaceWidth, height, !_textColor);
         return spaceWidth;
@@ -338,24 +354,20 @@ int FansElectronics_Bitmap::drawChar(int x, int y, char ch)
     const uint8_t *image;
     if (fontIsFixed(_font))
     {
-        // Fixed-width font.
         width = fontWidth(_font);
         image = ((const uint8_t *)_font) + 6 + index * heightBytes * width;
     }
     else
     {
-        // Variable-width font.
         width = pgm_read_byte(_font + 6 + index);
         image = ((const uint8_t *)_font) + 6 + count;
         for (uint8_t temp = 0; temp < index; ++temp)
         {
-            // Scan through all previous characters to find the starting
-            // location for this one.
             image += pgm_read_byte(_font + 6 + temp) * heightBytes;
         }
     }
     if ((x + width) <= 0 || (y + height) <= 0)
-        return width; // Character is off the top or left of the screen.
+        return width;
     Color invColor = !_textColor;
     for (uint8_t cx = 0; cx < width; ++cx)
     {
@@ -391,7 +403,7 @@ int FansElectronics_Bitmap::charWidth(char ch) const
     uint8_t first = fontFirstChar(_font);
     uint8_t count = fontCharCount(_font);
     if (index == ' ')
-        index = 'n'; // In case the font does not contain space.
+        index = 'n';
     if (index < first || index >= (first + count))
         return 0;
     if (fontIsFixed(_font))
@@ -440,13 +452,10 @@ void FansElectronics_Bitmap::copy(int x, int y, int width, int height, FansElect
 {
     if (dest == this)
     {
-        // Copying to within the same bitmap, so copy in a direction
-        // that will prevent problems with overlap.
         blit(x, y, x + width - 1, y + height - 1, destX, destY);
     }
     else
     {
-        // Copying to a different bitmap.
         while (height > 0)
         {
             for (int tempx = 0; tempx < width; ++tempx)
@@ -512,11 +521,11 @@ void FansElectronics_Bitmap::fill(int x, int y, int width, int height, FansElect
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::scroll(int x, int y, int width, int height, int dx, int dy, Color fillColor)
 {
-    // Bail out if no scrolling at all.
+    // ID: Algoritma pergeseran (Scrolling) area piksel secara horizontal / vertikal
+    // EN: Pixel-shifting scrolling algorithm targeting tailored regional coordinates
     if (!dx && !dy)
         return;
 
-    // Clamp the scroll region to the extents of the bitmap.
     if (x < 0)
     {
         width += x;
@@ -534,7 +543,6 @@ void FansElectronics_Bitmap::scroll(int x, int y, int width, int height, int dx,
     if (width <= 0 || height <= 0)
         return;
 
-    // Scroll the region in the specified direction.
     if (dy < 0)
     {
         if (dx < 0)
@@ -550,7 +558,6 @@ void FansElectronics_Bitmap::scroll(int x, int y, int width, int height, int dx,
             blit(x, y, x + width - 1 - dx, y + height - 1 - dy, x + dx, y + dy);
     }
 
-    // Fill the pixels that were uncovered by the scroll.
     if (dy < 0)
     {
         fill(x, y + height + dy, width, -dy, fillColor);
@@ -590,6 +597,8 @@ void FansElectronics_Bitmap::invert(int x, int y, int width, int height)
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::blit(int x1, int y1, int x2, int y2, int x3, int y3)
 {
+    // ID: Fungsi internal penyalin blok memori piksel secara cepat (Block Transfer)
+    // EN: Low-level bit-block transfer routine copying pixel regions rapidly
     if (y3 < y1 || (y1 == y3 && x3 <= x1))
     {
         for (int tempy = y1; tempy <= y2; ++tempy)
@@ -614,6 +623,8 @@ void FansElectronics_Bitmap::blit(int x1, int y1, int x2, int y2, int x3, int y3
 //----------------------------------------------------------------------------------------------
 void FansElectronics_Bitmap::drawCirclePoints(int centerX, int centerY, int radius, int x, int y, Color borderColor, Color fillColor)
 {
+    // ID: Fungsi pembantu menggambar 8 simetri titik lingkaran secara simultan
+    // EN: Helper routine drawing 8-way circle pixel symmetries simultaneously
     if (x != y)
     {
         setPixel(centerX + x, centerY + y, borderColor);

@@ -20,6 +20,8 @@ class FansElectronics_DMD32;
 class String;
 
 //----------------------------------------------------------------------------------------------
+// ID: Kelas Induk Grafis Berbasis Manajemen Koordinat Piksel Monokrom
+// EN: Base Graphic Class Managing Monochrome Coordinate Framebuffers
 class FansElectronics_Bitmap
 {
 public:
@@ -38,6 +40,9 @@ public:
     int bitsPerPixel() const { return 1; }
     uint8_t *data() { return fb; }
     const uint8_t *data() const { return fb; }
+
+    // ID: Prototipe fungsi manipulasi primitif dan pencetakan font
+    // EN: Prototypes of canvas primitive shapes and text-rendering APIs
     void clear(Color color = Black);
     Color pixel(int x, int y) const;
     void setPixel(int x, int y, Color color);
@@ -82,7 +87,9 @@ private:
     void blit(int x1, int y1, int x2, int y2, int x3, int y3);
     void drawCirclePoints(int centerX, int centerY, int radius, int x, int y, Color borderColor, Color fillColor);
 };
-//----------------------------------------------------------------------------------------------
+
+// ID: Implementasi fungsi segaris (inline) untuk optimasi kecepatan kompilator
+// EN: Inline method implementations guaranteeing fast compiler execution bounds
 inline void FansElectronics_Bitmap::drawFilledRect(int x1, int y1, int x2, int y2, Color color)
 {
     drawRect(x1, y1, x2, y2, color, color);
