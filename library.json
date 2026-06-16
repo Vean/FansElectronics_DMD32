@@ -26,7 +26,7 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/vean/FansElectronics_DMD32.git"
+        "url": "https://github.com/Vean/FansElectronics_DMD32.git"
     },
     "homepage": "https://www.fanselectronics.com",
     "frameworks": "arduino",
