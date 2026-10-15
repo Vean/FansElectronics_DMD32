@@ -15,9 +15,9 @@ Library ini membantu pengembang IoT dan produsen perangkat layar digital untuk:
 
 ---
 
-## Apa yang Baru di v1.0.0 🚀
+## Apa yang Baru di v1.1.0 🚀
 
-Rilis perdana yang fokus pada **stabilitas multi-panel dan fleksibilitas perangkat keras**.
+Menambahkan dukungan **multi-konektor paralel HUB12** (hingga 4 baris) tanpa perlu menghubungkan modul secara berantai (*daisy-chaining*) menggunakan kabel pita; sistem ini ditenagai oleh metode *bit-banging* register langsung yang sangat cepat, dilengkapi fitur pemadaman otomatis untuk baris yang tidak digunakan, serta kompatibilitas penuh dengan ESP32 Arduino Core versi 2.x dan 3.x.
 
 ### Mengapa memilih library ini?
 Berbeda dengan library umum lainnya, DMD32 fokus pada performa tinggi ESP32:

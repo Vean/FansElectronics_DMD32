@@ -15,9 +15,9 @@ This library empowers IoT developers and digital display manufacturers to:
 
 ---
 
-## What's New in v1.0.0 🚀
+## What's New in v1.1.0 🚀
 
-Initial release focused on **multi-panel stability and hardware flexibility**.
+Added **HUB12 parallel multi-connector support** (up to 4 rows) without ribbon cable daisy-chaining, powered by ultra-fast direct register bit-banging, automatic unused row blanking, and full compatibility across ESP32 Arduino Core v2.x and v3.x.
 
 ### Why choose this library?
 Unlike generic libraries, DMD32 focuses on ESP32 high-speed performance:
